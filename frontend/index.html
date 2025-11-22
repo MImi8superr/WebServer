@@ -1,23 +1,25 @@
 <!DOCTYPE html>
-<html lang="de">
+<html>
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>BuzzUp</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <title>Social App</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    .post { padding: 10px; }
+    button { margin-right: 10px; }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <h1>BuzzUp</h1>
 
-    <div id="new-post">
-      <textarea id="post-text" placeholder="Schreib etwas..."></textarea>
-      <button id="post-btn">Posten</button>
-    </div>
+  <h2>Post erstellen</h2>
+  <form id="postForm">
+    <input id="username" placeholder="Dein Username" required><br><br>
+    <textarea id="content" placeholder="Dein Post..." required></textarea><br><br>
+    <button type="submit">Posten</button>
+  </form>
 
-    <h2>Feed</h2>
-    <div id="feed"></div>
-  </div>
+  <h2>Alle Posts</h2>
+  <div id="posts"></div>
 
   <script src="script.js"></script>
 </body>
