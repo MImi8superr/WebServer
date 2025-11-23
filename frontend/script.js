@@ -1,74 +1,91 @@
-async function api(path, method = "GET", body = null) {
-  const options = { method, headers: {} };
-  if (body) {
-    options.headers["Content-Type"] = "application/json";
-    options.body = JSON.stringify(body);
+const api = "https://buzzup.onrender.com";
+let token = localStorage.getItem("token");
+
+// Registrierung
+async function register() {
+  const username = document.getElementById("regUser").value;
+  const password = document.getElementById("regPass").value;
+
+  const res = await fetch(api + "/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password })
+  });
+
+  const data = await res.json();
+  alert(data.success ? "Account erstellt!" : data.error);
+}
+
+// Login
+async function login() {
+  const username = document.getElementById("logUser").value;
+  const password = document.getElementById("logPass").value;
+
+  const res = await fetch(api + "/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password })
+  });
+
+  const data = await res.json();
+
+  if (data.token) {
+    localStorage.setItem("token", data.token);
+    token = data.token;
+    alert("Login erfolgreich!");
+  } else {
+    alert(data.error);
   }
-  const res = await fetch(path, options);
-  return res.json();
 }
 
 async function loadPosts() {
-  const posts = await api("/posts");
-  const feed = document.getElementById("feed");
-  feed.innerHTML = "";
+  const res = await fetch(api + "/posts");
+  const posts = await res.json();
 
-  posts.forEach(p => {
-    const div = document.createElement("div");
-    div.className = "post";
+  const box = document.getElementById("posts");
+  box.innerHTML = "";
 
-    const date = new Date(p.createdAt).toLocaleString();
+  posts.forEach(post => {
+    box.innerHTML += `
+      <div class="post">
+        <b>${post.author}</b><br>
+        ${post.content}<br><br>
 
-    div.innerHTML = `
-      <div class="meta">ID: ${p._id} • ${date}</div>
-      <div class="text">${escapeHtml(p.text)}</div>
-      <div class="actions">
-        <button class="action-btn" data-id="${p._id}" onclick="like('${p._id}')">👍 ${p.likes || 0}</button>
-        <button class="action-btn" data-id="${p._id}" onclick="dislike('${p._1}')">👎 ${p.dislikes || 0}</button>
+        <button onclick="react('${post._id}', 'like')">👍 ${post.likes}</button>
+        <button onclick="react('${post._id}', 'dislike')">👎 ${post.dislikes}</button>
       </div>
-
-      <div class="replies">
-        ${ (p.replies || []).map(r => `<div>↳ ${escapeHtml(r.text)}</div>`).join("") }
-      </div>
-
-      <div class="reply-input">
-        <input id="reply-${p._id}" placeholder="Antwort schreiben...">
-        <button class="action-btn" onclick="reply('${p._id}')">Antworten</button>
-      </div>
+      <hr>
     `;
-    feed.appendChild(div);
   });
 }
 
-function escapeHtml(str) {
-  if (!str) return "";
-  return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+async function createPost() {
+  if (!token) return alert("Du musst eingeloggt sein!");
+
+  const content = document.getElementById("content").value;
+
+  const res = await fetch(api + "/posts", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + token
+    },
+    body: JSON.stringify({ content })
+  });
+
+  document.getElementById("content").value = "";
+  loadPosts();
 }
 
-async function like(id) {
-  await api(`/post/${id}/like`, "POST");
-  await loadPosts();
-}
-async function dislike(id) {
-  await api(`/post/${id}/dislike`, "POST");
-  await loadPosts();
-}
-async function reply(id) {
-  const el = document.getElementById(`reply-${id}`);
-  const text = el.value.trim();
-  if (!text) return;
-  el.value = "";
-  await api(`/post/${id}/reply`, "POST", { text });
-  await loadPosts();
+// Likes
+async function react(id, action) {
+  await fetch(api + "/posts/react", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ postId: id, action })
+  });
+
+  loadPosts();
 }
 
-document.getElementById("post-btn").addEventListener("click", async () => {
-  const text = document.getElementById("post-text").value.trim();
-  if (!text) return;
-  document.getElementById("post-text").value = "";
-  await api("/post", "POST", { text });
-  await loadPosts();
-});
-
-// initial load
 loadPosts();
