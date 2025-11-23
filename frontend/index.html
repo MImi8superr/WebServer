@@ -1,24 +1,39 @@
 <!DOCTYPE html>
-<html lang="de">
+<html>
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>BuzzUp</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <title>Social App</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    .box { border: 1px solid #ccc; padding: 10px; margin-bottom: 20px; }
+    .post { margin-bottom: 15px; }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <h1>BuzzUp</h1>
 
-    <div id="new-post">
-      <textarea id="post-text" placeholder="Schreib etwas..."></textarea>
-      <button id="post-btn">Posten</button>
-    </div>
+<h2>Registrieren</h2>
+<div class="box">
+  <input id="regUser" placeholder="Benutzername"><br><br>
+  <input id="regPass" type="password" placeholder="Passwort"><br><br>
+  <button onclick="register()">Account erstellen</button>
+</div>
 
-    <h2>Feed</h2>
-    <div id="feed"></div>
-  </div>
+<h2>Login</h2>
+<div class="box">
+  <input id="logUser" placeholder="Benutzername"><br><br>
+  <input id="logPass" type="password" placeholder="Passwort"><br><br>
+  <button onclick="login()">Login</button>
+</div>
 
-  <script src="script.js"></script>
+<h2>Neuer Post</h2>
+<div class="box">
+  <textarea id="content" placeholder="Dein Post..."></textarea><br><br>
+  <button onclick="createPost()">Posten</button>
+</div>
+
+<h2>Alle Posts</h2>
+<div id="posts"></div>
+
+<script src="script.js"></script>
 </body>
 </html>
