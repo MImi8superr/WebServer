@@ -1,96 +1,110 @@
 import express from "express";
-import mongoose from "mongoose";
 import cors from "cors";
-import path from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import mongoose from "mongoose";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
 const app = express();
-app.use(express.json());
 app.use(cors());
+app.use(express.json());
 
-// statische Dateien aus dem frontend-Ordner servieren
-app.use(express.static(path.join(__dirname, "../frontend")));
+// MongoDB verbinden
+mongoose.connect(process.env.MONGO_URL);
 
-// MongoDB verbinden (MONGO_URL kommt aus Render env)
-const mongoUrl = process.env.MONGO_URL;
-if (!mongoUrl) {
-  console.error("MONGO_URL ist nicht gesetzt!");
-} else {
-  mongoose.connect(mongoUrl).then(() => {
-    console.log("Connected to MongoDB");
-  }).catch(err => {
-    console.error("MongoDB connection error:", err);
-  });
-}
+// JWT Secret
+const SECRET = "SUPER_SECRET_KEY";
 
-// Schema
-const Post = mongoose.model("Post", {
-  text: String,
-  likes: { type: Number, default: 0 },
-  dislikes: { type: Number, default: 0 },
-  replies: [
-    {
-      text: String,
-      createdAt: Date
-    }
-  ],
-  createdAt: Date
+// User Schema
+const userSchema = new mongoose.Schema({
+  username: { type: String, unique: true },
+  password: String
 });
 
-// API Routes
+const User = mongoose.model("User", userSchema);
+
+// Post Schema
+const postSchema = new mongoose.Schema({
+  author: String,
+  content: String,
+  likes: { type: Number, default: 0 },
+  dislikes: { type: Number, default: 0 }
+});
+
+const Post = mongoose.model("Post", postSchema);
+
+// Middleware → token prüfen
+function auth(req, res, next) {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Not logged in" });
+
+  try {
+    const decoded = jwt.verify(token, SECRET);
+    req.user = decoded;
+    next();
+  } catch {
+    res.status(401).json({ error: "Invalid token" });
+  }
+}
+
+// Registrierung
+app.post("/register", async (req, res) => {
+  const { username, password } = req.body;
+
+  const hashed = await bcrypt.hash(password, 10);
+
+  try {
+    const user = new User({ username, password: hashed });
+    await user.save();
+    res.json({ success: true });
+  } catch {
+    res.status(400).json({ error: "Username exists" });
+  }
+});
+
+// Login
+app.post("/login", async (req, res) => {
+  const { username, password } = req.body;
+
+  const user = await User.findOne({ username });
+  if (!user) return res.status(400).json({ error: "Wrong credentials" });
+
+  const ok = await bcrypt.compare(password, user.password);
+  if (!ok) return res.status(400).json({ error: "Wrong credentials" });
+
+  const token = jwt.sign({ username }, SECRET, { expiresIn: "7d" });
+
+  res.json({ token });
+});
+
+// Post erstellen (nur eingeloggt)
+app.post("/posts", auth, async (req, res) => {
+  const post = new Post({
+    author: req.user.username,
+    content: req.body.content
+  });
+
+  await post.save();
+  res.json(post);
+});
+
+// Posts holen
 app.get("/posts", async (req, res) => {
-  const posts = await Post.find().sort({ createdAt: -1 });
+  const posts = await Post.find().sort({ _id: -1 });
   res.json(posts);
 });
 
-app.post("/post", async (req, res) => {
-  const post = await Post.create({
-    text: req.body.text || "",
-    likes: 0,
-    dislikes: 0,
-    replies: [],
-    createdAt: new Date()
-  });
-  res.json(post);
-});
+// Likes / Dislikes
+app.post("/posts/react", async (req, res) => {
+  const { postId, action } = req.body;
 
-app.post("/post/:id/like", async (req, res) => {
-  const post = await Post.findById(req.params.id);
+  const post = await Post.findById(postId);
   if (!post) return res.status(404).json({ error: "Post not found" });
-  post.likes = (post.likes || 0) + 1;
+
+  if (action === "like") post.likes++;
+  if (action === "dislike") post.dislikes++;
+
   await post.save();
   res.json(post);
 });
 
-app.post("/post/:id/dislike", async (req, res) => {
-  const post = await Post.findById(req.params.id);
-  if (!post) return res.status(404).json({ error: "Post not found" });
-  post.dislikes = (post.dislikes || 0) + 1;
-  await post.save();
-  res.json(post);
-});
-
-app.post("/post/:id/reply", async (req, res) => {
-  const post = await Post.findById(req.params.id);
-  if (!post) return res.status(404).json({ error: "Post not found" });
-  post.replies.push({
-    text: req.body.text || "",
-    createdAt: new Date()
-  });
-  await post.save();
-  res.json(post);
-});
-
-// Fallback (wenn jemand / aufruft, wird index.html aus frontend ausgeliefert)
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "../frontend/index.html"));
-});
-
-// Start
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log("Server läuft");
-});
+app.listen(3000, () => console.log("Server läuft"));
