@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Anmelden oder Registrieren</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="auth-body">
+  <header class="topbar">
+    <div class="topbar-left">
+      <a href="/" class="brand">Social App</a>
+      <nav class="nav-actions">
+        <a class="btn ghost" href="/auth.html#login">Login</a>
+        <a class="btn primary" href="/auth.html#register">Registrieren</a>
+      </nav>
+    </div>
+    <a class="link" href="/">Zurück zum Feed</a>
+  </header>
+
+  <main class="container auth-grid">
+    <section class="card" id="login">
+      <div class="card-header">
+        <p class="eyebrow">Willkommen zurück</p>
+        <h1>Login</h1>
+      </div>
+      <form id="loginForm" class="form-grid">
+        <label class="field">
+          <span>Benutzername</span>
+          <input id="logUser" name="username" autocomplete="username" required />
+        </label>
+        <label class="field">
+          <span>Passwort</span>
+          <input id="logPass" type="password" name="password" autocomplete="current-password" required />
+        </label>
+        <button class="btn primary" type="submit">Einloggen</button>
+        <p id="loginMessage" class="form-message"></p>
+      </form>
+    </section>
+
+    <section class="card" id="register">
+      <div class="card-header">
+        <p class="eyebrow">Neu hier?</p>
+        <h2>Registrieren</h2>
+      </div>
+      <form id="registerForm" class="form-grid">
+        <label class="field">
+          <span>Benutzername</span>
+          <input id="regUser" name="username" autocomplete="username" required />
+        </label>
+        <label class="field">
+          <span>Passwort</span>
+          <input id="regPass" type="password" name="password" autocomplete="new-password" required />
+        </label>
+        <button class="btn ghost" type="submit">Account erstellen</button>
+        <p id="registerMessage" class="form-message"></p>
+      </form>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
