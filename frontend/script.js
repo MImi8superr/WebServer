@@ -1,6 +1,17 @@
 const apiBase = window.location.origin;
 let token = localStorage.getItem("token");
+let currentUser = getUserFromToken(token);
 let socket;
+
+function getUserFromToken(savedToken) {
+  if (!savedToken) return null;
+  try {
+    const payload = JSON.parse(atob(savedToken.split(".")[1]));
+    return payload.username;
+  } catch (e) {
+    return null;
+  }
+}
 
 function initSocket() {
   socket = io(apiBase, { transports: ["websocket", "polling"] });
@@ -27,17 +38,27 @@ function createPostElement(post) {
 
   const actions = document.createElement("div");
   const likeBtn = document.createElement("button");
-  likeBtn.textContent = `👍 ${post.likes}`;
-  likeBtn.addEventListener("click", () => react(post._id, "like"));
-
   const dislikeBtn = document.createElement("button");
+
+  likeBtn.textContent = `👍 ${post.likes}`;
   dislikeBtn.textContent = `👎 ${post.dislikes}`;
+
+  likeBtn.addEventListener("click", () => react(post._id, "like"));
   dislikeBtn.addEventListener("click", () => react(post._id, "dislike"));
 
   actions.append(likeBtn, dislikeBtn);
   wrapper.append(author, document.createElement("br"), content, document.createElement("br"), document.createElement("br"), actions, document.createElement("hr"));
 
+  applyReactionState(wrapper, post);
   return wrapper;
+}
+
+function applyReactionState(wrapper, post) {
+  const reaction = (post.reactions || []).find((r) => r.user === currentUser)?.value;
+  const [likeBtn, dislikeBtn] = wrapper.querySelectorAll("button");
+
+  likeBtn.disabled = reaction === "like";
+  dislikeBtn.disabled = reaction === "dislike";
 }
 
 function upsertPost(post) {
@@ -51,6 +72,7 @@ function upsertPost(post) {
     const [likeBtn, dislikeBtn] = existing.querySelectorAll("button");
     likeBtn.textContent = `👍 ${post.likes}`;
     dislikeBtn.textContent = `👎 ${post.dislikes}`;
+    applyReactionState(existing, post);
     return;
   }
 
@@ -102,6 +124,7 @@ async function login() {
     if (data.token) {
       localStorage.setItem("token", data.token);
       token = data.token;
+      currentUser = getUserFromToken(data.token);
       alert("Login erfolgreich!");
       window.location.href = "/";
     } else {
