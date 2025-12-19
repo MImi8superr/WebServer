@@ -11,19 +11,10 @@
 </head>
 <body>
 
-<h2>Registrieren</h2>
-<div class="box">
-  <input id="regUser" placeholder="Benutzername"><br><br>
-  <input id="regPass" type="password" placeholder="Passwort"><br><br>
-  <button onclick="register()">Account erstellen</button>
-</div>
-
-<h2>Login</h2>
-<div class="box">
-  <input id="logUser" placeholder="Benutzername"><br><br>
-  <input id="logPass" type="password" placeholder="Passwort"><br><br>
-  <button onclick="login()">Login</button>
-</div>
+<header style="display:flex; gap:10px; align-items:center;">
+  <a href="/auth.html"><button>Login</button></a>
+  <a href="/auth.html"><button>Registrieren</button></a>
+</header>
 
 <h2>Neuer Post</h2>
 <div class="box">
@@ -34,6 +25,7 @@
 <h2>Alle Posts</h2>
 <div id="posts"></div>
 
+<script src="/socket.io/socket.io.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

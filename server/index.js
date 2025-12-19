@@ -1,18 +1,35 @@
-import express from "express";
-import cors from "cors";
-import mongoose from "mongoose";
 import bcrypt from "bcrypt";
+import cors from "cors";
+import express from "express";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
+import path from "path";
+import { fileURLToPath } from "url";
+import { createServer } from "http";
+import { Server as SocketIOServer } from "socket.io";
 
 const app = express();
+const httpServer = createServer(app);
+const io = new SocketIOServer(httpServer, {
+  cors: { origin: process.env.FRONTEND_ORIGIN || "*", methods: ["GET", "POST"] }
+});
+
 app.use(cors());
 app.use(express.json());
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const frontendDir = path.join(__dirname, "..", "frontend");
+app.use(express.static(frontendDir));
+
 // MongoDB verbinden
-mongoose.connect(process.env.MONGO_URL);
+if (!process.env.MONGO_URL) {
+  console.warn("MONGO_URL ist nicht gesetzt. Bitte eine gültige Verbindung bereitstellen.");
+}
+mongoose.connect(process.env.MONGO_URL || "mongodb://localhost:27017/social-app");
 
 // JWT Secret
-const SECRET = "SUPER_SECRET_KEY";
+const SECRET = process.env.JWT_SECRET || "CHANGE_ME_IN_PRODUCTION";
 
 // User Schema
 const userSchema = new mongoose.Schema({
@@ -23,12 +40,21 @@ const userSchema = new mongoose.Schema({
 const User = mongoose.model("User", userSchema);
 
 // Post Schema
-const postSchema = new mongoose.Schema({
-  author: String,
-  content: String,
-  likes: { type: Number, default: 0 },
-  dislikes: { type: Number, default: 0 }
-});
+const postSchema = new mongoose.Schema(
+  {
+    author: String,
+    content: String,
+    likes: { type: Number, default: 0 },
+    dislikes: { type: Number, default: 0 },
+    reactions: [
+      {
+        user: String,
+        value: { type: String, enum: ["like", "dislike"] }
+      }
+    ]
+  },
+  { timestamps: true }
+);
 
 const Post = mongoose.model("Post", postSchema);
 
@@ -49,6 +75,7 @@ function auth(req, res, next) {
 // Registrierung
 app.post("/register", async (req, res) => {
   const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: "Benutzername und Passwort sind erforderlich." });
 
   const hashed = await bcrypt.hash(password, 10);
 
@@ -56,20 +83,24 @@ app.post("/register", async (req, res) => {
     const user = new User({ username, password: hashed });
     await user.save();
     res.json({ success: true });
-  } catch {
-    res.status(400).json({ error: "Username exists" });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({ error: "Benutzername existiert bereits." });
+    }
+    res.status(400).json({ error: "Registrierung fehlgeschlagen." });
   }
 });
 
 // Login
 app.post("/login", async (req, res) => {
   const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: "Benutzername und Passwort sind erforderlich." });
 
   const user = await User.findOne({ username });
-  if (!user) return res.status(400).json({ error: "Wrong credentials" });
+  if (!user) return res.status(400).json({ error: "Falsche Zugangsdaten." });
 
   const ok = await bcrypt.compare(password, user.password);
-  if (!ok) return res.status(400).json({ error: "Wrong credentials" });
+  if (!ok) return res.status(400).json({ error: "Falsche Zugangsdaten." });
 
   const token = jwt.sign({ username }, SECRET, { expiresIn: "7d" });
 
@@ -78,33 +109,61 @@ app.post("/login", async (req, res) => {
 
 // Post erstellen (nur eingeloggt)
 app.post("/posts", auth, async (req, res) => {
+  const content = (req.body.content || "").trim();
+  if (!content) return res.status(400).json({ error: "Der Post-Inhalt darf nicht leer sein." });
+
   const post = new Post({
     author: req.user.username,
-    content: req.body.content
+    content
   });
 
   await post.save();
+  io.emit("post:created", post);
   res.json(post);
 });
 
 // Posts holen
 app.get("/posts", async (req, res) => {
-  const posts = await Post.find().sort({ _id: -1 });
+  const posts = await Post.find().sort({ createdAt: -1 });
   res.json(posts);
 });
 
 // Likes / Dislikes
-app.post("/posts/react", async (req, res) => {
+app.post("/posts/react", auth, async (req, res) => {
   const { postId, action } = req.body;
+  if (!postId || !["like", "dislike"].includes(action)) {
+    return res.status(400).json({ error: "Ungültige Anfrage." });
+  }
 
   const post = await Post.findById(postId);
-  if (!post) return res.status(404).json({ error: "Post not found" });
+  if (!post) return res.status(404).json({ error: "Post nicht gefunden." });
+
+  const existing = post.reactions.find((r) => r.user === req.user.username);
+
+  if (existing && existing.value === action) {
+    return res.status(400).json({ error: "Du hast bereits so reagiert." });
+  }
+
+  if (existing && existing.value !== action) {
+    if (existing.value === "like") post.likes = Math.max(0, post.likes - 1);
+    if (existing.value === "dislike") post.dislikes = Math.max(0, post.dislikes - 1);
+    existing.value = action;
+  } else {
+    post.reactions.push({ user: req.user.username, value: action });
+  }
 
   if (action === "like") post.likes++;
   if (action === "dislike") post.dislikes++;
 
   await post.save();
+  io.emit("post:updated", post);
   res.json(post);
 });
 
-app.listen(3000, () => console.log("Server läuft"));
+io.on("connection", (socket) => {
+  socket.on("disconnect", () => {
+    // Verbindung geschlossen
+  });
+});
+
+httpServer.listen(3000, () => console.log("Server läuft"));
