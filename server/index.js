@@ -45,7 +45,12 @@ const postSchema = new mongoose.Schema(
     author: String,
     content: String,
     likes: { type: Number, default: 0 },
-    dislikes: { type: Number, default: 0 }
+    dislikes: { type: Number, default: 0 },
+    reactions: {
+      type: Map,
+      of: String,
+      default: {}
+    }
   },
   { timestamps: true }
 );
@@ -123,7 +128,7 @@ app.get("/posts", async (req, res) => {
 });
 
 // Likes / Dislikes
-app.post("/posts/react", async (req, res) => {
+app.post("/posts/react", auth, async (req, res) => {
   const { postId, action } = req.body;
   if (!postId || !["like", "dislike"].includes(action)) {
     return res.status(400).json({ error: "Ungültige Anfrage." });
@@ -132,8 +137,22 @@ app.post("/posts/react", async (req, res) => {
   const post = await Post.findById(postId);
   if (!post) return res.status(404).json({ error: "Post nicht gefunden." });
 
+  if (!post.reactions) {
+    post.reactions = new Map();
+  }
+
+  const previous = post.reactions.get(req.user.username);
+  if (previous === action) {
+    return res.json(post);
+  }
+
+  if (previous === "like") post.likes--;
+  if (previous === "dislike") post.dislikes--;
+
   if (action === "like") post.likes++;
   if (action === "dislike") post.dislikes++;
+
+  post.reactions.set(req.user.username, action);
 
   await post.save();
   io.emit("post:updated", post);

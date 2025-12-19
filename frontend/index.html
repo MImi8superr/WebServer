@@ -1,40 +1,47 @@
 <!DOCTYPE html>
-<html>
+<html lang="de">
 <head>
   <meta charset="UTF-8" />
   <title>Social App</title>
-  <style>
-    body { font-family: Arial; padding: 20px; }
-    .box { border: 1px solid #ccc; padding: 10px; margin-bottom: 20px; }
-    .post { margin-bottom: 15px; }
-  </style>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <header class="topbar">
+    <div class="topbar-left">
+      <a href="/" class="brand">Social App</a>
+      <nav class="nav-actions">
+        <a class="btn ghost" href="/auth.html#login">Login</a>
+        <a class="btn primary" href="/auth.html#register">Registrieren</a>
+      </nav>
+    </div>
+    <div id="userStatus" class="user-status"></div>
+  </header>
 
-<h2>Registrieren</h2>
-<div class="box">
-  <input id="regUser" placeholder="Benutzername"><br><br>
-  <input id="regPass" type="password" placeholder="Passwort"><br><br>
-  <button onclick="register()">Account erstellen</button>
-</div>
+  <main class="container">
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <p class="eyebrow">Teile deine Gedanken</p>
+          <h1>Neuer Post</h1>
+        </div>
+        <p id="postHelper" class="muted">Melde dich an, um zu posten.</p>
+      </div>
+      <form id="new-post-form" class="post-form">
+        <textarea id="content" placeholder="Was möchtest du mitteilen?"></textarea>
+        <button id="post-btn" type="submit" class="btn primary">Posten</button>
+      </form>
+    </section>
 
-<h2>Login</h2>
-<div class="box">
-  <input id="logUser" placeholder="Benutzername"><br><br>
-  <input id="logPass" type="password" placeholder="Passwort"><br><br>
-  <button onclick="login()">Login</button>
-</div>
+    <section class="card">
+      <div class="card-header">
+        <p class="eyebrow">Live-Feed</p>
+        <h2>Alle Posts</h2>
+      </div>
+      <div id="posts" class="post-list"></div>
+    </section>
+  </main>
 
-<h2>Neuer Post</h2>
-<div class="box">
-  <textarea id="content" placeholder="Dein Post..."></textarea><br><br>
-  <button onclick="createPost()">Posten</button>
-</div>
-
-<h2>Alle Posts</h2>
-<div id="posts"></div>
-
-<script src="/socket.io/socket.io.js"></script>
-<script src="script.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
