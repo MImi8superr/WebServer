@@ -1,91 +1,167 @@
-const api = "https://buzzup.onrender.com";
+const apiBase = window.location.origin;
 let token = localStorage.getItem("token");
+let socket;
+
+function initSocket() {
+  socket = io(apiBase, { transports: ["websocket", "polling"] });
+
+  socket.on("post:created", (post) => {
+    upsertPost(post);
+  });
+
+  socket.on("post:updated", (post) => {
+    upsertPost(post);
+  });
+}
+
+function createPostElement(post) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "post";
+  wrapper.dataset.id = post._id;
+
+  const author = document.createElement("b");
+  author.textContent = post.author;
+
+  const content = document.createElement("div");
+  content.textContent = post.content;
+
+  const actions = document.createElement("div");
+  const likeBtn = document.createElement("button");
+  likeBtn.textContent = `👍 ${post.likes}`;
+  likeBtn.addEventListener("click", () => react(post._id, "like"));
+
+  const dislikeBtn = document.createElement("button");
+  dislikeBtn.textContent = `👎 ${post.dislikes}`;
+  dislikeBtn.addEventListener("click", () => react(post._id, "dislike"));
+
+  actions.append(likeBtn, dislikeBtn);
+  wrapper.append(author, document.createElement("br"), content, document.createElement("br"), document.createElement("br"), actions, document.createElement("hr"));
+
+  return wrapper;
+}
+
+function upsertPost(post) {
+  const container = document.getElementById("posts");
+  const existing = container.querySelector(`[data-id="${post._id}"]`);
+
+  if (existing) {
+    existing.querySelector("div").textContent = post.content;
+    const [likeBtn, dislikeBtn] = existing.querySelectorAll("button");
+    likeBtn.textContent = `👍 ${post.likes}`;
+    dislikeBtn.textContent = `👎 ${post.dislikes}`;
+    return;
+  }
+
+  const element = createPostElement(post);
+  container.prepend(element);
+}
 
 // Registrierung
 async function register() {
-  const username = document.getElementById("regUser").value;
+  const username = document.getElementById("regUser").value.trim();
   const password = document.getElementById("regPass").value;
 
-  const res = await fetch(api + "/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password })
-  });
+  try {
+    const res = await fetch(apiBase + "/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
 
-  const data = await res.json();
-  alert(data.success ? "Account erstellt!" : data.error);
+    const data = await res.json();
+    alert(data.success ? "Account erstellt!" : data.error || "Registrierung fehlgeschlagen.");
+  } catch (error) {
+    alert("Server nicht erreichbar. Bitte erneut versuchen.");
+  }
 }
 
 // Login
 async function login() {
-  const username = document.getElementById("logUser").value;
+  const username = document.getElementById("logUser").value.trim();
   const password = document.getElementById("logPass").value;
 
-  const res = await fetch(api + "/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password })
-  });
+  try {
+    const res = await fetch(apiBase + "/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
 
-  const data = await res.json();
+    const data = await res.json();
 
-  if (data.token) {
-    localStorage.setItem("token", data.token);
-    token = data.token;
-    alert("Login erfolgreich!");
-  } else {
-    alert(data.error);
+    if (data.token) {
+      localStorage.setItem("token", data.token);
+      token = data.token;
+      alert("Login erfolgreich!");
+    } else {
+      alert(data.error || "Login fehlgeschlagen.");
+    }
+  } catch (error) {
+    alert("Server nicht erreichbar. Bitte erneut versuchen.");
   }
 }
 
 async function loadPosts() {
-  const res = await fetch(api + "/posts");
-  const posts = await res.json();
+  try {
+    const res = await fetch(apiBase + "/posts");
+    const posts = await res.json();
 
-  const box = document.getElementById("posts");
-  box.innerHTML = "";
-
-  posts.forEach(post => {
-    box.innerHTML += `
-      <div class="post">
-        <b>${post.author}</b><br>
-        ${post.content}<br><br>
-
-        <button onclick="react('${post._id}', 'like')">👍 ${post.likes}</button>
-        <button onclick="react('${post._id}', 'dislike')">👎 ${post.dislikes}</button>
-      </div>
-      <hr>
-    `;
-  });
+    const container = document.getElementById("posts");
+    container.innerHTML = "";
+    posts.forEach((post) => container.appendChild(createPostElement(post)));
+  } catch (error) {
+    alert("Beiträge konnten nicht geladen werden.");
+  }
 }
 
 async function createPost() {
   if (!token) return alert("Du musst eingeloggt sein!");
 
-  const content = document.getElementById("content").value;
+  const contentField = document.getElementById("content");
+  const content = contentField.value.trim();
+  if (!content) return alert("Bitte Text eingeben.");
 
-  const res = await fetch(api + "/posts", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + token
-    },
-    body: JSON.stringify({ content })
-  });
+  try {
+    const res = await fetch(apiBase + "/posts", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token
+      },
+      body: JSON.stringify({ content })
+    });
 
-  document.getElementById("content").value = "";
-  loadPosts();
+    const post = await res.json();
+    if (post.error) {
+      return alert(post.error);
+    }
+
+    contentField.value = "";
+    upsertPost(post);
+  } catch (error) {
+    alert("Post konnte nicht erstellt werden.");
+  }
 }
 
 // Likes
 async function react(id, action) {
-  await fetch(api + "/posts/react", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ postId: id, action })
-  });
+  try {
+    const res = await fetch(apiBase + "/posts/react", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ postId: id, action })
+    });
 
-  loadPosts();
+    const post = await res.json();
+    if (!post.error) {
+      upsertPost(post);
+    }
+  } catch (error) {
+    alert("Aktion fehlgeschlagen.");
+  }
 }
 
-loadPosts();
+document.addEventListener("DOMContentLoaded", () => {
+  initSocket();
+  loadPosts();
+});
