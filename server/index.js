@@ -46,6 +46,13 @@ const postSchema = new mongoose.Schema(
     content: String,
     likes: { type: Number, default: 0 },
     dislikes: { type: Number, default: 0 },
+    replies: [
+      {
+        author: String,
+        content: String,
+        createdAt: { type: Date, default: Date.now }
+      }
+    ],
     reactions: {
       type: Map,
       of: String,
@@ -125,6 +132,46 @@ app.post("/posts", auth, async (req, res) => {
 app.get("/posts", async (req, res) => {
   const posts = await Post.find().sort({ createdAt: -1 });
   res.json(posts);
+});
+
+// Post bearbeiten
+app.patch("/posts/:id", auth, async (req, res) => {
+  const content = (req.body.content || "").trim();
+  if (!content) return res.status(400).json({ error: "Der Post-Inhalt darf nicht leer sein." });
+
+  const post = await Post.findById(req.params.id);
+  if (!post) return res.status(404).json({ error: "Post nicht gefunden." });
+  if (post.author !== req.user.username) return res.status(403).json({ error: "Keine Berechtigung." });
+
+  post.content = content;
+  await post.save();
+  io.emit("post:updated", post);
+  res.json(post);
+});
+
+// Post löschen
+app.delete("/posts/:id", auth, async (req, res) => {
+  const post = await Post.findById(req.params.id);
+  if (!post) return res.status(404).json({ error: "Post nicht gefunden." });
+  if (post.author !== req.user.username) return res.status(403).json({ error: "Keine Berechtigung." });
+
+  await Post.deleteOne({ _id: post._id });
+  io.emit("post:deleted", { id: post._id.toString() });
+  res.json({ success: true });
+});
+
+// Auf Post antworten
+app.post("/posts/:id/replies", auth, async (req, res) => {
+  const content = (req.body.content || "").trim();
+  if (!content) return res.status(400).json({ error: "Die Antwort darf nicht leer sein." });
+
+  const post = await Post.findById(req.params.id);
+  if (!post) return res.status(404).json({ error: "Post nicht gefunden." });
+
+  post.replies.push({ author: req.user.username, content });
+  await post.save();
+  io.emit("post:updated", post);
+  res.json(post);
 });
 
 // Likes / Dislikes
