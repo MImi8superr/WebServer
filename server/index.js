@@ -38,11 +38,10 @@ async function connectDatabase() {
 
 connectDatabase();
 
-// JWT Secret (muss gesetzt sein)
-const SECRET = process.env.JWT_SECRET;
-if (!SECRET) {
-  console.error("JWT_SECRET ist nicht gesetzt. Server wird beendet.");
-  process.exit(1);
+// JWT Secret (fällt auf einen unsicheren Standard zurück, wenn nicht gesetzt)
+const SECRET = process.env.JWT_SECRET || "unsafe-default-secret";
+if (!process.env.JWT_SECRET) {
+  console.warn("JWT_SECRET ist nicht gesetzt. Es wird ein unsicherer Standardwert verwendet.");
 }
 
 // User Schema
