@@ -69,6 +69,7 @@ function initSocket() {
 
   socket.on("post:created", (post) => upsertPost(post));
   socket.on("post:updated", (post) => upsertPost(post));
+  socket.on("post:deleted", ({ id }) => removePost(id));
 }
 
 function getUserReaction(post) {
@@ -80,13 +81,12 @@ function getUserReaction(post) {
 }
 
 function applyReactionState(wrapper, post) {
-  const [likeBtn, dislikeBtn] = wrapper.querySelectorAll(".action-btn");
+  const likeBtn = wrapper.querySelector('.action-btn[data-action="like"]');
+  const dislikeBtn = wrapper.querySelector('.action-btn[data-action="dislike"]');
   const reaction = getUserReaction(post);
 
-  if (likeBtn && dislikeBtn) {
-    likeBtn.classList.toggle("is-active", reaction === "like");
-    dislikeBtn.classList.toggle("is-active", reaction === "dislike");
-  }
+  likeBtn?.classList.toggle("is-active", reaction === "like");
+  dislikeBtn?.classList.toggle("is-active", reaction === "dislike");
 }
 
 function createReactionButton(action, count, postId) {
@@ -105,9 +105,50 @@ function createPostElement(post) {
   wrapper.dataset.id = post._id;
   wrapper.__post = post;
 
-  const meta = document.createElement("p");
+  const header = document.createElement("div");
+  header.className = "post-header";
+
+  const meta = document.createElement("div");
   meta.className = "meta";
   meta.textContent = post.author;
+  header.appendChild(meta);
+
+  if (currentUser === post.author) {
+    const menu = document.createElement("div");
+    menu.className = "post-menu";
+    const closeMenu = () => menu.classList.remove("open");
+
+    const trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "menu-trigger";
+    trigger.setAttribute("aria-label", "Post-Aktionen");
+    trigger.textContent = "⋯";
+
+    const dropdown = document.createElement("div");
+    dropdown.className = "menu-dropdown";
+
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.textContent = "Bearbeiten";
+    editBtn.addEventListener("click", () => {
+      closeMenu();
+      enterEditMode(wrapper, post);
+    });
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "danger";
+    deleteBtn.textContent = "Löschen";
+    deleteBtn.addEventListener("click", () => {
+      closeMenu();
+      deletePost(post._id);
+    });
+
+    dropdown.append(editBtn, deleteBtn);
+    menu.append(trigger, dropdown);
+    trigger.addEventListener("click", () => menu.classList.toggle("open"));
+    header.appendChild(menu);
+  }
 
   const content = document.createElement("p");
   content.className = "content";
@@ -117,9 +158,21 @@ function createPostElement(post) {
   actions.className = "actions";
   const likeBtn = createReactionButton("like", post.likes, post._id);
   const dislikeBtn = createReactionButton("dislike", post.dislikes, post._id);
-  actions.append(likeBtn, dislikeBtn);
+  const replyBtn = document.createElement("button");
+  replyBtn.type = "button";
+  replyBtn.className = "action-btn";
+  replyBtn.textContent = "💬 Antworten";
+  replyBtn.addEventListener("click", () => toggleReplyForm(wrapper, post._id));
+  actions.append(likeBtn, dislikeBtn, replyBtn);
 
-  wrapper.append(meta, content, actions);
+  const replyFormContainer = document.createElement("div");
+  replyFormContainer.className = "reply-form-container";
+
+  const replies = document.createElement("div");
+  replies.className = "replies";
+  renderReplies(post, replies);
+
+  wrapper.append(header, content, actions, replyFormContainer, replies);
   applyReactionState(wrapper, post);
 
   return wrapper;
@@ -132,19 +185,214 @@ function upsertPost(post) {
   const existing = container.querySelector(`[data-id="${post._id}"]`);
 
   if (existing) {
-    existing.__post = post;
-    existing.querySelector(".content").textContent = post.content;
-    const [likeBtn, dislikeBtn] = existing.querySelectorAll(".action-btn");
-    if (likeBtn && dislikeBtn) {
-      likeBtn.textContent = `👍 ${post.likes}`;
-      dislikeBtn.textContent = `👎 ${post.dislikes}`;
-    }
-    applyReactionState(existing, post);
+    const updated = createPostElement(post);
+    container.replaceChild(updated, existing);
     return;
   }
 
   const element = createPostElement(post);
   container.prepend(element);
+}
+
+function renderReplies(post, container) {
+  container.innerHTML = "";
+  if (!post.replies?.length) return;
+
+  const headline = document.createElement("p");
+  headline.className = "replies-title";
+  headline.textContent = "Antworten";
+  container.appendChild(headline);
+
+  post.replies.forEach((reply) => {
+    const entry = document.createElement("div");
+    entry.className = "reply";
+
+    const byline = document.createElement("p");
+    byline.className = "reply-meta";
+    byline.textContent = reply.author;
+
+    const text = document.createElement("p");
+    text.className = "reply-text";
+    text.textContent = reply.content;
+
+    entry.append(byline, text);
+    container.appendChild(entry);
+  });
+}
+
+function enterEditMode(wrapper, post) {
+  if (!token) return redirectToAuth();
+  if (wrapper.dataset.editing === "true") return;
+  wrapper.dataset.editing = "true";
+
+  const contentEl = wrapper.querySelector(".content");
+  const actionsEl = wrapper.querySelector(".actions");
+  if (!contentEl || !actionsEl) return;
+
+  const textarea = document.createElement("textarea");
+  textarea.className = "edit-area";
+  textarea.value = post.content;
+  textarea.setAttribute("aria-label", "Post bearbeiten");
+  contentEl.replaceWith(textarea);
+
+  const editActions = document.createElement("div");
+  editActions.className = "edit-actions";
+
+  const saveBtn = document.createElement("button");
+  saveBtn.type = "button";
+  saveBtn.className = "btn primary small";
+  saveBtn.textContent = "Speichern";
+  saveBtn.addEventListener("click", () => updatePost(post._id, textarea.value));
+
+  const cancelBtn = document.createElement("button");
+  cancelBtn.type = "button";
+  cancelBtn.className = "btn ghost small";
+  cancelBtn.textContent = "Abbrechen";
+  cancelBtn.addEventListener("click", () => {
+    textarea.replaceWith(contentEl);
+    editActions.remove();
+    wrapper.dataset.editing = "false";
+  });
+
+  editActions.append(saveBtn, cancelBtn);
+  wrapper.insertBefore(editActions, actionsEl);
+}
+
+async function updatePost(id, content) {
+  if (!token) return redirectToAuth();
+  const trimmed = content.trim();
+  if (!trimmed) return alert("Der Post-Inhalt darf nicht leer sein.");
+
+  try {
+    const res = await fetch(`${apiBase}/posts/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token
+      },
+      body: JSON.stringify({ content: trimmed })
+    });
+
+    if (res.status === 401) {
+      setSession(null);
+      return redirectToAuth();
+    }
+
+    const data = await res.json();
+    if (data.error) {
+      alert(data.error);
+      return;
+    }
+
+    upsertPost(data);
+  } catch {
+    alert("Der Post konnte nicht bearbeitet werden.");
+  }
+}
+
+async function deletePost(id) {
+  if (!token) return redirectToAuth();
+  const confirmDelete = confirm("Möchtest du diesen Post wirklich löschen?");
+  if (!confirmDelete) return;
+
+  try {
+    const res = await fetch(`${apiBase}/posts/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: "Bearer " + token }
+    });
+
+    if (res.status === 401) {
+      setSession(null);
+      return redirectToAuth();
+    }
+
+    const data = await res.json();
+    if (data.error) return alert(data.error);
+    removePost(id);
+  } catch {
+    alert("Der Post konnte nicht gelöscht werden.");
+  }
+}
+
+function toggleReplyForm(wrapper, postId) {
+  if (!token) return redirectToAuth();
+
+  const container = wrapper.querySelector(".reply-form-container");
+  if (!container) return;
+
+  if (container.childElementCount) {
+    container.innerHTML = "";
+    return;
+  }
+
+  const form = document.createElement("form");
+  form.className = "reply-form";
+
+  const textarea = document.createElement("textarea");
+  textarea.className = "reply-area";
+  textarea.placeholder = "Antwort schreiben...";
+
+  const buttons = document.createElement("div");
+  buttons.className = "reply-actions";
+
+  const sendBtn = document.createElement("button");
+  sendBtn.type = "submit";
+  sendBtn.className = "btn primary small";
+  sendBtn.textContent = "Absenden";
+
+  const cancelBtn = document.createElement("button");
+  cancelBtn.type = "button";
+  cancelBtn.className = "btn ghost small";
+  cancelBtn.textContent = "Abbrechen";
+  cancelBtn.addEventListener("click", () => (container.innerHTML = ""));
+
+  buttons.append(sendBtn, cancelBtn);
+  form.append(textarea, buttons);
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    submitReply(postId, textarea.value, container);
+  });
+
+  container.appendChild(form);
+}
+
+async function submitReply(postId, content, container) {
+  if (!token) return redirectToAuth();
+  const trimmed = content.trim();
+  if (!trimmed) return alert("Bitte gib eine Antwort ein.");
+
+  try {
+    const res = await fetch(`${apiBase}/posts/${postId}/replies`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token
+      },
+      body: JSON.stringify({ content: trimmed })
+    });
+
+    if (res.status === 401) {
+      setSession(null);
+      return redirectToAuth();
+    }
+
+    const data = await res.json();
+    if (data.error) {
+      alert(data.error);
+      return;
+    }
+
+    container.innerHTML = "";
+    upsertPost(data);
+  } catch {
+    alert("Antwort konnte nicht gesendet werden.");
+  }
+}
+
+function removePost(id) {
+  const container = document.getElementById("posts");
+  const postEl = container?.querySelector(`[data-id="${id}"]`);
+  postEl?.remove();
 }
 
 async function register(event) {
