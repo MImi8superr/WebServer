@@ -188,6 +188,39 @@ app.post("/posts/:id/replies", auth, async (req, res) => {
   res.json(post);
 });
 
+// Antwort bearbeiten
+app.patch("/posts/:id/replies/:replyId", auth, async (req, res) => {
+  const content = (req.body.content || "").trim();
+  if (!content) return res.status(400).json({ error: "Die Antwort darf nicht leer sein." });
+
+  const post = await Post.findById(req.params.id);
+  if (!post) return res.status(404).json({ error: "Post nicht gefunden." });
+
+  const reply = post.replies.id(req.params.replyId);
+  if (!reply) return res.status(404).json({ error: "Antwort nicht gefunden." });
+  if (reply.author !== req.user.username) return res.status(403).json({ error: "Keine Berechtigung." });
+
+  reply.content = content;
+  await post.save();
+  io.emit("post:updated", post);
+  res.json(post);
+});
+
+// Antwort löschen
+app.delete("/posts/:id/replies/:replyId", auth, async (req, res) => {
+  const post = await Post.findById(req.params.id);
+  if (!post) return res.status(404).json({ error: "Post nicht gefunden." });
+
+  const reply = post.replies.id(req.params.replyId);
+  if (!reply) return res.status(404).json({ error: "Antwort nicht gefunden." });
+  if (reply.author !== req.user.username) return res.status(403).json({ error: "Keine Berechtigung." });
+
+  reply.deleteOne();
+  await post.save();
+  io.emit("post:updated", post);
+  res.json(post);
+});
+
 // Likes / Dislikes
 app.post("/posts/react", auth, async (req, res) => {
   const { postId, action } = req.body;

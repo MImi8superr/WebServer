@@ -208,6 +208,8 @@ function renderReplies(post, container) {
   post.replies.forEach((reply) => {
     const entry = document.createElement("div");
     entry.className = "reply";
+    entry.dataset.id = reply._id;
+    entry.__reply = reply;
 
     const byline = document.createElement("p");
     byline.className = "reply-meta";
@@ -217,9 +219,127 @@ function renderReplies(post, container) {
     text.className = "reply-text";
     text.textContent = reply.content;
 
+    if (currentUser === reply.author) {
+      const menu = document.createElement("div");
+      menu.className = "post-menu reply-menu";
+      const trigger = document.createElement("button");
+      trigger.type = "button";
+      trigger.className = "menu-trigger";
+      trigger.setAttribute("aria-label", "Antwort-Aktionen");
+      trigger.textContent = "⋯";
+
+      const dropdown = document.createElement("div");
+      dropdown.className = "menu-dropdown";
+
+      const editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.textContent = "Bearbeiten";
+      editBtn.addEventListener("click", () => enterReplyEditMode(entry, post._id, reply));
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "danger";
+      deleteBtn.textContent = "Löschen";
+      deleteBtn.addEventListener("click", () => deleteReply(post._id, reply._id));
+
+      dropdown.append(editBtn, deleteBtn);
+      menu.append(trigger, dropdown);
+      trigger.addEventListener("click", () => menu.classList.toggle("open"));
+      entry.appendChild(menu);
+    }
+
     entry.append(byline, text);
     container.appendChild(entry);
   });
+}
+
+function enterReplyEditMode(entry, postId, reply) {
+  if (!token) return redirectToAuth();
+  if (entry.dataset.editing === "true") return;
+  entry.dataset.editing = "true";
+
+  const textEl = entry.querySelector(".reply-text");
+  if (!textEl) return;
+
+  const textarea = document.createElement("textarea");
+  textarea.className = "edit-area";
+  textarea.value = reply.content;
+  textarea.setAttribute("aria-label", "Antwort bearbeiten");
+  textEl.replaceWith(textarea);
+
+  const actions = document.createElement("div");
+  actions.className = "edit-actions";
+
+  const saveBtn = document.createElement("button");
+  saveBtn.type = "button";
+  saveBtn.className = "btn primary small";
+  saveBtn.textContent = "Speichern";
+  saveBtn.addEventListener("click", () => updateReply(postId, reply._id, textarea.value));
+
+  const cancelBtn = document.createElement("button");
+  cancelBtn.type = "button";
+  cancelBtn.className = "btn ghost small";
+  cancelBtn.textContent = "Abbrechen";
+  cancelBtn.addEventListener("click", () => {
+    textarea.replaceWith(textEl);
+    actions.remove();
+    entry.dataset.editing = "false";
+  });
+
+  actions.append(saveBtn, cancelBtn);
+  entry.appendChild(actions);
+}
+
+async function updateReply(postId, replyId, content) {
+  if (!token) return redirectToAuth();
+  const trimmed = content.trim();
+  if (!trimmed) return alert("Die Antwort darf nicht leer sein.");
+
+  try {
+    const res = await fetch(`${apiBase}/posts/${postId}/replies/${replyId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token
+      },
+      body: JSON.stringify({ content: trimmed })
+    });
+
+    if (res.status === 401) {
+      setSession(null);
+      return redirectToAuth();
+    }
+
+    const data = await res.json();
+    if (data.error) return alert(data.error);
+    upsertPost(data);
+  } catch {
+    alert("Antwort konnte nicht bearbeitet werden.");
+  }
+}
+
+async function deleteReply(postId, replyId) {
+  if (!token) return redirectToAuth();
+  const confirmDelete = confirm("Möchtest du diese Antwort löschen?");
+  if (!confirmDelete) return;
+
+  try {
+    const res = await fetch(`${apiBase}/posts/${postId}/replies/${replyId}`, {
+      method: "DELETE",
+      headers: { Authorization: "Bearer " + token }
+    });
+
+    if (res.status === 401) {
+      setSession(null);
+      return redirectToAuth();
+    }
+
+    const data = await res.json();
+    if (data.error) return alert(data.error);
+    upsertPost(data);
+  } catch {
+    alert("Antwort konnte nicht gelöscht werden.");
+  }
 }
 
 function enterEditMode(wrapper, post) {
