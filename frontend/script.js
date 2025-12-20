@@ -5,7 +5,9 @@ let currentUser = null;
 
 function decodeUsernameFromToken(jwtToken) {
   try {
-    const payload = JSON.parse(atob(jwtToken.split(".")[1]));
+    const base64Url = jwtToken.split(".")[1];
+    const normalized = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(atob(normalized));
     return payload?.username || null;
   } catch {
     return null;

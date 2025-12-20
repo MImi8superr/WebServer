@@ -26,9 +26,19 @@ app.use(express.static(frontendDir));
 if (!process.env.MONGO_URL) {
   console.warn("MONGO_URL ist nicht gesetzt. Bitte eine gültige Verbindung bereitstellen.");
 }
-mongoose.connect(process.env.MONGO_URL || "mongodb://localhost:27017/social-app");
+async function connectDatabase() {
+  try {
+    await mongoose.connect(process.env.MONGO_URL || "mongodb://localhost:27017/social-app");
+    console.log("Mit MongoDB verbunden.");
+  } catch (error) {
+    console.error("MongoDB-Verbindung fehlgeschlagen:", error.message);
+    process.exit(1);
+  }
+}
 
-// JWT Secret
+connectDatabase();
+
+// JWT Secret (fällt auf Default zurück, wenn nicht gesetzt)
 const SECRET = process.env.JWT_SECRET || "CHANGE_ME_IN_PRODUCTION";
 
 // User Schema
