@@ -293,6 +293,13 @@ h1, h2 {
   padding: 10px 12px;
 }
 
+.reply-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .reply-meta {
   margin: 0 0 6px;
   color: #9bb6d6;

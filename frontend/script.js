@@ -211,13 +211,13 @@ function renderReplies(post, container) {
     entry.dataset.id = reply._id;
     entry.__reply = reply;
 
+    const replyHeader = document.createElement("div");
+    replyHeader.className = "reply-header";
+
     const byline = document.createElement("p");
     byline.className = "reply-meta";
     byline.textContent = reply.author;
-
-    const text = document.createElement("p");
-    text.className = "reply-text";
-    text.textContent = reply.content;
+    replyHeader.appendChild(byline);
 
     if (currentUser === reply.author) {
       const menu = document.createElement("div");
@@ -245,10 +245,14 @@ function renderReplies(post, container) {
       dropdown.append(editBtn, deleteBtn);
       menu.append(trigger, dropdown);
       trigger.addEventListener("click", () => menu.classList.toggle("open"));
-      entry.appendChild(menu);
+      replyHeader.appendChild(menu);
     }
 
-    entry.append(byline, text);
+    const text = document.createElement("p");
+    text.className = "reply-text";
+    text.textContent = reply.content;
+
+    entry.append(replyHeader, text);
     container.appendChild(entry);
   });
 }
