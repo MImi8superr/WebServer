@@ -2,46 +2,46 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <title>BuzzUp</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Exploit / Scam Detector</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header class="topbar">
-    <div class="topbar-left">
-      <a href="/" class="brand">BuzzUp</a>
-      <nav class="nav-actions">
-        <a class="btn ghost" href="/auth.html#login">Login</a>
-        <a class="btn primary" href="/auth.html#register">Registrieren</a>
-      </nav>
-    </div>
-    <div id="userStatus" class="user-status"></div>
-  </header>
-
   <main class="container">
     <section class="card">
-      <div class="card-header">
-        <div>
-          <p class="eyebrow">Teile deine Gedanken</p>
-          <h1>Neuer Post</h1>
+      <p class="eyebrow">Security Check</p>
+      <h1>Exploit / Scam Detector</h1>
+      <p class="muted">
+        URL eingeben und einen schnellen Risiko-Check bekommen (Keywords, Domain-Muster, HTTPS, URL-Tricks).
+      </p>
+
+      <form id="detectorForm" class="detector-form">
+        <label for="targetUrl">Zu prüfende URL</label>
+        <div class="row">
+          <input
+            id="targetUrl"
+            type="url"
+            placeholder="https://beispiel.de"
+            required
+          />
+          <button type="submit" class="btn primary">Prüfen</button>
         </div>
-        <p id="postHelper" class="muted">Melde dich an, um zu posten.</p>
-      </div>
-      <form id="new-post-form" class="post-form">
-        <textarea id="content" placeholder="Was möchtest du mitteilen?"></textarea>
-        <button id="post-btn" type="submit" class="btn primary">Posten</button>
       </form>
     </section>
 
-    <section class="card">
-      <div class="card-header">
-        <p class="eyebrow">Live-Feed</p>
-        <h2>Alle Posts</h2>
+    <section id="resultCard" class="card hidden" aria-live="polite">
+      <div class="result-header">
+        <h2>Ergebnis</h2>
+        <span id="riskBadge" class="badge">-</span>
       </div>
-      <div id="posts" class="post-list"></div>
+      <p id="scoreText" class="score">-</p>
+      <ul id="signals" class="signals"></ul>
+      <p class="hint">
+        Hinweis: Das ist ein Heuristik-Check und ersetzt keine professionelle Sicherheitsanalyse.
+      </p>
     </section>
   </main>
 
-  <script src="/socket.io/socket.io.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

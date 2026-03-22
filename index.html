@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Exploit / Scam Detector</title>
+    <link rel="stylesheet" href="/frontend/style.css" />
+  </head>
+  <body>
+    <main class="container">
+      <section class="card">
+        <p class="eyebrow">Security Check</p>
+        <h1>Exploit / Scam Detector</h1>
+        <p class="muted">
+          URL eingeben und einen schnellen Risiko-Check bekommen (Keywords, Domain-Muster, HTTPS, URL-Tricks).
+        </p>
+
+        <form id="detectorForm" class="detector-form">
+          <label for="targetUrl">Zu prüfende URL</label>
+          <div class="row">
+            <input id="targetUrl" type="url" placeholder="https://beispiel.de" required />
+            <button type="submit" class="btn primary">Prüfen</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="resultCard" class="card hidden" aria-live="polite">
+        <div class="result-header">
+          <h2>Ergebnis</h2>
+          <span id="riskBadge" class="badge">-</span>
+        </div>
+        <p id="scoreText" class="score">-</p>
+        <ul id="signals" class="signals"></ul>
+        <p class="hint">
+          Hinweis: Das ist ein Heuristik-Check und ersetzt keine professionelle Sicherheitsanalyse.
+        </p>
+      </section>
+    </main>
+
+    <script src="/frontend/script.js"></script>
+  </body>
+</html>
