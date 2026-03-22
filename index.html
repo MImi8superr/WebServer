@@ -3,40 +3,54 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Exploit / Scam Detector</title>
-    <link rel="stylesheet" href="/frontend/style.css" />
+    <title>MiniChat Community</title>
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <main class="container">
-      <section class="card">
-        <p class="eyebrow">Security Check</p>
-        <h1>Exploit / Scam Detector</h1>
-        <p class="muted">
-          URL eingeben und einen schnellen Risiko-Check bekommen (Keywords, Domain-Muster, HTTPS, URL-Tricks).
-        </p>
-
-        <form id="detectorForm" class="detector-form">
-          <label for="targetUrl">Zu prüfende URL</label>
+    <main class="layout">
+      <section class="card auth-card">
+        <h1>MiniChat Community</h1>
+        <p class="muted">Posts, Antworten, Likes/Dislikes und private Direct Messages.</p>
+        <div id="authStatus" class="status">Nicht eingeloggt</div>
+        <form id="authForm" class="grid">
+          <input id="username" placeholder="Username" required />
+          <input id="password" type="password" placeholder="Passwort" required minlength="4" />
           <div class="row">
-            <input id="targetUrl" type="url" placeholder="https://beispiel.de" required />
-            <button type="submit" class="btn primary">Prüfen</button>
+            <button data-action="signup" type="submit">Registrieren</button>
+            <button data-action="login" type="button">Login</button>
+            <button id="logoutBtn" type="button" class="ghost">Logout</button>
           </div>
         </form>
       </section>
 
-      <section id="resultCard" class="card hidden" aria-live="polite">
-        <div class="result-header">
-          <h2>Ergebnis</h2>
-          <span id="riskBadge" class="badge">-</span>
+      <section class="card">
+        <h2>Neuer Post</h2>
+        <form id="postForm" class="grid">
+          <textarea id="postContent" placeholder="Schreibe deinen Post..." required></textarea>
+          <button type="submit">Posten</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Feed</h2>
+        <div id="posts"></div>
+      </section>
+
+      <section class="card">
+        <h2>Direct Messages</h2>
+        <div class="grid">
+          <select id="dmUserSelect">
+            <option value="">-- User auswählen --</option>
+          </select>
+          <div id="dmMessages" class="messages"></div>
+          <form id="dmForm" class="row">
+            <input id="dmContent" placeholder="Private Nachricht..." />
+            <button type="submit">Senden</button>
+          </form>
         </div>
-        <p id="scoreText" class="score">-</p>
-        <ul id="signals" class="signals"></ul>
-        <p class="hint">
-          Hinweis: Das ist ein Heuristik-Check und ersetzt keine professionelle Sicherheitsanalyse.
-        </p>
       </section>
     </main>
 
-    <script src="/frontend/script.js"></script>
+    <script type="module" src="app.js"></script>
   </body>
 </html>
